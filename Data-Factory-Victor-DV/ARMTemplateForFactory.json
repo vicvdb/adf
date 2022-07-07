@@ -852,13 +852,14 @@
 				},
 				"parameters": {
 					"AdminAPI": {
-						"type": "string",
-						"defaultValue": "activityevents?startDateTime='@{formatDateTime(getPastTime(int(item()), 'Day'), 'yyyy-MM-dd')}T00:00:00.000Z'&endDateTime='@{formatDateTime(getPastTime(int(item()), 'Day'), 'yyyy-MM-dd')}T23:59:59.999Z'"
+						"type": "string"
 					}
 				},
 				"annotations": [],
 				"type": "RestResource",
-				"typeProperties": {},
+				"typeProperties": {
+					"relativeUrl": "@dataset().AdminAPI"
+				},
 				"schema": []
 			},
 			"dependsOn": [
@@ -889,8 +890,8 @@
 				"type": "AzureSqlTable",
 				"schema": [],
 				"typeProperties": {
-					"schema": "dbo",
-					"table": "tablelogs"
+					"schema": "@dataset().SchemaName",
+					"table": "@dataset().TableName"
 				}
 			},
 			"dependsOn": [
