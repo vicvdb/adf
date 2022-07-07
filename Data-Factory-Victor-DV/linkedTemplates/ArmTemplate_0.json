@@ -32,13 +32,6 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/PL_PowerBIGetActivityEvents')]",
-			"type": "Microsoft.DataFactory/factories/templates",
-			"apiVersion": "2018-06-01",
-			"properties": {},
-			"dependsOn": []
-		},
-		{
 			"name": "[concat(parameters('factoryName'), '/AutoResolveIntegrationRuntime')]",
 			"type": "Microsoft.DataFactory/factories/integrationRuntimes",
 			"apiVersion": "2018-06-01",
@@ -109,82 +102,6 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/RestResource1')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "API_REST_PowerBI",
-					"type": "LinkedServiceReference"
-				},
-				"parameters": {
-					"AdminAPI": {
-						"type": "string",
-						"defaultValue": "activityevents?startDateTime='@{formatDateTime(getPastTime(int(item()), 'Day'), 'yyyy-MM-dd')}T00:00:00.000Z'&endDateTime='@{formatDateTime(getPastTime(int(item()), 'Day'), 'yyyy-MM-dd')}T23:59:59.999Z'"
-					}
-				},
-				"annotations": [],
-				"type": "RestResource",
-				"typeProperties": {},
-				"schema": []
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/API_REST_PowerBI')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/TableLogs')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "BdDVictor",
-					"type": "LinkedServiceReference"
-				},
-				"annotations": [],
-				"type": "AzureSqlTable",
-				"schema": [],
-				"typeProperties": {
-					"schema": "dbo",
-					"table": "tablelogs"
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/BdDVictor')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/DS_REST_PowerBI')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "API_REST_PowerBI",
-					"type": "LinkedServiceReference"
-				},
-				"parameters": {
-					"AdminAPI": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "Generic"
-				},
-				"annotations": [],
-				"type": "RestResource",
-				"typeProperties": {
-					"relativeUrl": {
-						"value": "@dataset().AdminAPI",
-						"type": "Expression"
-					}
-				},
-				"schema": []
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/API_REST_PowerBI')]"
-			]
-		},
-		{
 			"name": "[concat(parameters('factoryName'), '/DS_ASQL_Generic')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
@@ -226,6 +143,93 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/DS_REST_PowerBI')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "API_REST_PowerBI",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"AdminAPI": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Generic"
+				},
+				"annotations": [],
+				"type": "RestResource",
+				"typeProperties": {
+					"relativeUrl": {
+						"value": "@dataset().AdminAPI",
+						"type": "Expression"
+					}
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/API_REST_PowerBI')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/RestResource1')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "API_REST_PowerBI",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"AdminAPI": {
+						"type": "string",
+						"defaultValue": "activityevents?startDateTime='@{formatDateTime(getPastTime(int(item()), 'Day'), 'yyyy-MM-dd')}T00:00:00.000Z'&endDateTime='@{formatDateTime(getPastTime(int(item()), 'Day'), 'yyyy-MM-dd')}T23:59:59.999Z'"
+					}
+				},
+				"annotations": [],
+				"type": "RestResource",
+				"typeProperties": {},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/API_REST_PowerBI')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/TableLogs')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "BdDVictor",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"SchemaName": {
+						"type": "string"
+					},
+					"TableName": {
+						"type": "string"
+					},
+					"DatabaseName": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "tablelogs"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/BdDVictor')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/ETL_Logs_PowerBI')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -239,7 +243,7 @@
 						"userProperties": [],
 						"typeProperties": {
 							"items": {
-								"value": "@range(1,pipeline().parameters.DaysToExtract)",
+								"value": "@range(1,pipeline().parameters.JoursAExtraire)",
 								"type": "Expression"
 							},
 							"isSequential": false,
@@ -255,7 +259,16 @@
 										"secureOutput": false,
 										"secureInput": false
 									},
-									"userProperties": [],
+									"userProperties": [
+										{
+											"name": "Destination",
+											"value": "dbo.tablelogs"
+										},
+										{
+											"name": "Source",
+											"value": "@{concat('activityevents?startDateTime=''', formatDateTime(adddays(utcnow(), -7), 'yyyy-MM-dd'), 'T00:00:00.000Z''&endDateTime=''', formatDateTime(adddays(utcnow(), -7), 'yyyy-MM-dd'), 'T23:59:59.999Z''')}"
+										}
+									],
 									"typeProperties": {
 										"source": {
 											"type": "RestSource",
@@ -279,10 +292,7 @@
 											"requestInterval": "00.00:00:00.010",
 											"requestMethod": "GET",
 											"paginationRules": {
-												"AbsoluteUrl": {
-													"value": "$.continuationUri",
-													"type": "Expression"
-												}
+												"AbsoluteUrl": "$.continuationUri"
 											}
 										},
 										"sink": {
@@ -292,7 +302,11 @@
 											"tableOption": "autoCreate",
 											"disableMetricsCollection": false
 										},
-										"enableStaging": false
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"mapComplexValuesToString": true
+										}
 									},
 									"inputs": [
 										{
@@ -300,7 +314,7 @@
 											"type": "DatasetReference",
 											"parameters": {
 												"AdminAPI": {
-													"value": "activityevents?startDateTime='@{formatDateTime(getPastTime(int(item()), 'Day'), 'yyyy-MM-dd')}T00:00:00.000Z'&endDateTime='@{formatDateTime(getPastTime(int(item()), 'Day'), 'yyyy-MM-dd')}T23:59:59.999Z'",
+													"value": "activityevents?startDateTime='@{formatDateTime(getPastTime(item(), 'Day'), 'yyyy-MM-dd')}T00:00:00.000Z'&endDateTime='@{formatDateTime(getPastTime(item(), 'Day'), 'yyyy-MM-dd')}T23:59:59.999Z'",
 													"type": "Expression"
 												}
 											}
@@ -310,7 +324,11 @@
 										{
 											"referenceName": "TableLogs",
 											"type": "DatasetReference",
-											"parameters": {}
+											"parameters": {
+												"SchemaName": "stgpowerbi",
+												"TableName": "ActivityEvents",
+												"DatabaseName": "DWH"
+											}
 										}
 									]
 								}
@@ -323,7 +341,7 @@
 					"cancelAfter": {}
 				},
 				"parameters": {
-					"DaysToExtract": {
+					"JoursAExtraire": {
 						"type": "int",
 						"defaultValue": 1
 					}
