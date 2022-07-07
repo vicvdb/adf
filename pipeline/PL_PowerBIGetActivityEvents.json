@@ -59,7 +59,16 @@
 								},
 								"sink": {
 									"type": "AzureSqlSink",
-									"tableOption": "autoCreate"
+									"writeBehavior": "upsert",
+									"upsertSettings": {
+										"useTempDB": true,
+										"keys": [
+											""
+										]
+									},
+									"sqlWriterUseTableLock": false,
+									"tableOption": "autoCreate",
+									"disableMetricsCollection": false
 								},
 								"enableStaging": false,
 								"translator": {
@@ -583,7 +592,7 @@
 									"type": "DatasetReference",
 									"parameters": {
 										"SchemaName": "stgpowerbi",
-										"TableName": "ActivityEvents",
+										"TableName": "TableLogs",
 										"DatabaseName": "DWH"
 									}
 								}
