@@ -20,8 +20,8 @@
 		"type": "AzureSqlTable",
 		"schema": [],
 		"typeProperties": {
-			"schema": "dbo",
-			"table": "tablelogs"
+			"schema": "@dataset().SchemaName",
+			"table": "@dataset().TableName"
 		}
 	},
 	"type": "Microsoft.DataFactory/factories/datasets"
