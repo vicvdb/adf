@@ -5,6 +5,17 @@
 			"referenceName": "BdDVictor",
 			"type": "LinkedServiceReference"
 		},
+		"parameters": {
+			"SchemaName": {
+				"type": "string"
+			},
+			"TableName": {
+				"type": "string"
+			},
+			"DatabaseName": {
+				"type": "string"
+			}
+		},
 		"annotations": [],
 		"type": "AzureSqlTable",
 		"schema": [],

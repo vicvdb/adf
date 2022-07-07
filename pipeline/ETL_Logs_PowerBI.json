@@ -10,7 +10,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"items": {
-						"value": "@range(1,pipeline().parameters.DaysToExtract)",
+						"value": "@range(1,pipeline().parameters.JoursAExtraire)",
 						"type": "Expression"
 					},
 					"isSequential": false,
@@ -26,7 +26,16 @@
 								"secureOutput": false,
 								"secureInput": false
 							},
-							"userProperties": [],
+							"userProperties": [
+								{
+									"name": "Destination",
+									"value": "dbo.tablelogs"
+								},
+								{
+									"name": "Source",
+									"value": "@{concat('activityevents?startDateTime=''', formatDateTime(adddays(utcnow(), -7), 'yyyy-MM-dd'), 'T00:00:00.000Z''&endDateTime=''', formatDateTime(adddays(utcnow(), -7), 'yyyy-MM-dd'), 'T23:59:59.999Z''')}"
+								}
+							],
 							"typeProperties": {
 								"source": {
 									"type": "RestSource",
@@ -50,10 +59,7 @@
 									"requestInterval": "00.00:00:00.010",
 									"requestMethod": "GET",
 									"paginationRules": {
-										"AbsoluteUrl": {
-											"value": "$.continuationUri",
-											"type": "Expression"
-										}
+										"AbsoluteUrl": "$.continuationUri"
 									}
 								},
 								"sink": {
@@ -63,7 +69,11 @@
 									"tableOption": "autoCreate",
 									"disableMetricsCollection": false
 								},
-								"enableStaging": false
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"mapComplexValuesToString": true
+								}
 							},
 							"inputs": [
 								{
@@ -71,7 +81,7 @@
 									"type": "DatasetReference",
 									"parameters": {
 										"AdminAPI": {
-											"value": "activityevents?startDateTime='@{formatDateTime(getPastTime(int(item()), 'Day'), 'yyyy-MM-dd')}T00:00:00.000Z'&endDateTime='@{formatDateTime(getPastTime(int(item()), 'Day'), 'yyyy-MM-dd')}T23:59:59.999Z'",
+											"value": "activityevents?startDateTime='@{formatDateTime(getPastTime(item(), 'Day'), 'yyyy-MM-dd')}T00:00:00.000Z'&endDateTime='@{formatDateTime(getPastTime(item(), 'Day'), 'yyyy-MM-dd')}T23:59:59.999Z'",
 											"type": "Expression"
 										}
 									}
@@ -80,7 +90,12 @@
 							"outputs": [
 								{
 									"referenceName": "TableLogs",
-									"type": "DatasetReference"
+									"type": "DatasetReference",
+									"parameters": {
+										"SchemaName": "stgpowerbi",
+										"TableName": "ActivityEvents",
+										"DatabaseName": "DWH"
+									}
 								}
 							]
 						}
@@ -89,7 +104,7 @@
 			}
 		],
 		"parameters": {
-			"DaysToExtract": {
+			"JoursAExtraire": {
 				"type": "int",
 				"defaultValue": 1
 			}
