@@ -1,0 +1,706 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name"
+		},
+		"LS_REST_MSI": {
+			"type": "string"
+		},
+		"SupportDatabase": {
+			"type": "string"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/PL_PowerBIGetActivityEvents')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Extract Power BI Activity Events\n\nCreated by: Just Blindbæk",
+				"activities": [
+					{
+						"name": "ForEach Day",
+						"type": "ForEach",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@range(1,pipeline().parameters.DaysToExtract)",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "Copy Activity Events",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [
+										{
+											"name": "Source",
+											"value": "@{concat('activityevents?startDateTime=''', formatDateTime(adddays(utcnow(), -7), 'yyyy-MM-dd'), 'T00:00:00.000Z''&endDateTime=''', formatDateTime(adddays(utcnow(), -7), 'yyyy-MM-dd'), 'T23:59:59.999Z''')}"
+										}
+									],
+									"typeProperties": {
+										"source": {
+											"type": "RestSource",
+											"additionalColumns": [
+												{
+													"name": "ADF_PipelineRunId",
+													"value": {
+														"value": "@pipeline().RunId",
+														"type": "Expression"
+													}
+												},
+												{
+													"name": "ADF_PipelineTriggerTime",
+													"value": {
+														"value": "@pipeline().TriggerTime",
+														"type": "Expression"
+													}
+												}
+											],
+											"httpRequestTimeout": "00:01:40",
+											"requestInterval": "00.00:00:00.010",
+											"requestMethod": "GET",
+											"paginationRules": {
+												"AbsoluteUrl": "$.continuationUri"
+											}
+										},
+										"sink": {
+											"type": "AzureSqlSink",
+											"tableOption": "autoCreate"
+										},
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"mappings": [
+												{
+													"source": {
+														"path": "[['Id']"
+													},
+													"sink": {
+														"name": "Id",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['RecordType']"
+													},
+													"sink": {
+														"name": "RecordType",
+														"type": "Int64"
+													}
+												},
+												{
+													"source": {
+														"path": "[['CreationTime']"
+													},
+													"sink": {
+														"name": "CreationTime",
+														"type": "DateTime"
+													}
+												},
+												{
+													"source": {
+														"path": "[['Operation']"
+													},
+													"sink": {
+														"name": "Operation",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['OrganizationId']"
+													},
+													"sink": {
+														"name": "OrganizationId",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['UserType']"
+													},
+													"sink": {
+														"name": "UserType",
+														"type": "Int64"
+													}
+												},
+												{
+													"source": {
+														"path": "[['UserKey']"
+													},
+													"sink": {
+														"name": "UserKey",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['Workload']"
+													},
+													"sink": {
+														"name": "Workload",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['UserId']"
+													},
+													"sink": {
+														"name": "UserId",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['ClientIP']"
+													},
+													"sink": {
+														"name": "ClientIP",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['UserAgent']"
+													},
+													"sink": {
+														"name": "UserAgent",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['Activity']"
+													},
+													"sink": {
+														"name": "Activity",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['ItemName']"
+													},
+													"sink": {
+														"name": "ItemName",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['ObjectId']"
+													},
+													"sink": {
+														"name": "ObjectId",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['RequestId']"
+													},
+													"sink": {
+														"name": "RequestId",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['ActivityId']"
+													},
+													"sink": {
+														"name": "ActivityId",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['IsSuccess']"
+													},
+													"sink": {
+														"name": "IsSuccess",
+														"type": "Boolean"
+													}
+												},
+												{
+													"source": {
+														"path": "[['WorkSpaceName']"
+													},
+													"sink": {
+														"name": "WorkSpaceName",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['WorkspaceId']"
+													},
+													"sink": {
+														"name": "WorkspaceId",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['ImportId']"
+													},
+													"sink": {
+														"name": "ImportId",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['ImportSource']"
+													},
+													"sink": {
+														"name": "ImportSource",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['ImportType']"
+													},
+													"sink": {
+														"name": "ImportType",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['ImportDisplayName']"
+													},
+													"sink": {
+														"name": "ImportDisplayName",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['DatasetName']"
+													},
+													"sink": {
+														"name": "DatasetName",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['DatasetId']"
+													},
+													"sink": {
+														"name": "DatasetId",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['Datasets']"
+													},
+													"sink": {
+														"name": "Datasets",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['DataConnectivityMode']"
+													},
+													"sink": {
+														"name": "DataConnectivityMode",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['GatewayId']"
+													},
+													"sink": {
+														"name": "GatewayId",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['GatewayName']"
+													},
+													"sink": {
+														"name": "GatewayName",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['GatewayType']"
+													},
+													"sink": {
+														"name": "GatewayType",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['ReportName']"
+													},
+													"sink": {
+														"name": "ReportName",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['ReportId']"
+													},
+													"sink": {
+														"name": "ReportId",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['ReportType']"
+													},
+													"sink": {
+														"name": "ReportType",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['FolderObjectId']"
+													},
+													"sink": {
+														"name": "FolderObjectId",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['FolderDisplayName']"
+													},
+													"sink": {
+														"name": "FolderDisplayName",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['ArtifactName']"
+													},
+													"sink": {
+														"name": "ArtifactName",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['ArtifactId']"
+													},
+													"sink": {
+														"name": "ArtifactId",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['CapacityName']"
+													},
+													"sink": {
+														"name": "CapacityName",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['CapacityUsers']"
+													},
+													"sink": {
+														"name": "CapacityUsers",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['CapacityState']"
+													},
+													"sink": {
+														"name": "CapacityState",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['DistributionMethod']"
+													},
+													"sink": {
+														"name": "DistributionMethod",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['ConsumptionMethod']"
+													},
+													"sink": {
+														"name": "ConsumptionMethod",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['RefreshType']"
+													},
+													"sink": {
+														"name": "RefreshType",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['AppName']"
+													},
+													"sink": {
+														"name": "AppName",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['AppReportId']"
+													},
+													"sink": {
+														"name": "AppReportId",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['DashboardName']"
+													},
+													"sink": {
+														"name": "DashboardName",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['DashboardId']"
+													},
+													"sink": {
+														"name": "DashboardId",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['DataflowId']"
+													},
+													"sink": {
+														"name": "DataflowId",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['DataflowName']"
+													},
+													"sink": {
+														"name": "DataflowName",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['DataflowAccessTokenRequestParameters']"
+													},
+													"sink": {
+														"name": "DataflowAccessTokenRequestParameters",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['DataflowType']"
+													},
+													"sink": {
+														"name": "DataflowType",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['EmbedTokenId']"
+													},
+													"sink": {
+														"name": "EmbedTokenId",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "[['RLSIdentities']"
+													},
+													"sink": {
+														"name": "RLSIdentities",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "$['ADF_PipelineRunId']"
+													},
+													"sink": {
+														"name": "ADF_PipelineRunId",
+														"type": "String"
+													}
+												},
+												{
+													"source": {
+														"path": "$['ADF_PipelineTriggerTime']"
+													},
+													"sink": {
+														"name": "ADF_PipelineTriggerTime",
+														"type": "DateTime"
+													}
+												}
+											],
+											"collectionReference": "$['activityEventEntities']",
+											"mapComplexValuesToString": true
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "DS_REST_PowerBI",
+											"type": "DatasetReference",
+											"parameters": {
+												"AdminAPI": {
+													"value": "activityevents?startDateTime='@{formatDateTime(getPastTime(item(), 'Day'), 'yyyy-MM-dd')}T00:00:00.000Z'&endDateTime='@{formatDateTime(getPastTime(item(), 'Day'), 'yyyy-MM-dd')}T23:59:59.999Z'",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "DS_ASQL_Generic",
+											"type": "DatasetReference",
+											"parameters": {
+												"SchemaName": "stgpowerbi",
+												"TableName": "ActivityEvents",
+												"DatabaseName": "DWH"
+											}
+										}
+									]
+								}
+							]
+						}
+					}
+				],
+				"parameters": {
+					"DaysToExtract": {
+						"type": "int",
+						"defaultValue": 1
+					}
+				},
+				"folder": {
+					"name": "Power BI monitor"
+				},
+				"annotations": [],
+				"lastPublishTime": "2021-02-19T19:36:32Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/DS_REST_PowerBI')]",
+				"[concat(variables('factoryId'), '/datasets/DS_ASQL_Generic')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DS_REST_PowerBI')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('LS_REST_MSI')]",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"BaseURL": "https://api.powerbi.com/v1.0/myorg/admin/"
+					}
+				},
+				"parameters": {
+					"AdminAPI": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Generic"
+				},
+				"annotations": [],
+				"type": "RestResource",
+				"typeProperties": {
+					"relativeUrl": {
+						"value": "@dataset().AdminAPI",
+						"type": "Expression"
+					}
+				},
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DS_ASQL_Generic')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('SupportDatabase')]",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"SchemaName": {
+						"type": "String"
+					},
+					"TableName": {
+						"type": "String"
+					},
+					"DatabaseName": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Generic"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": {
+						"value": "@dataset().SchemaName",
+						"type": "Expression"
+					},
+					"table": {
+						"value": "@dataset().TableName",
+						"type": "Expression"
+					}
+				}
+			},
+			"dependsOn": []
+		}
+	]
+}
