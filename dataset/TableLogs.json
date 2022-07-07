@@ -1,0 +1,17 @@
+{
+	"name": "TableLogs",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "BdDVictor",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [],
+		"typeProperties": {
+			"schema": "dbo",
+			"table": "tablelogs"
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

@@ -1,0 +1,19 @@
+{
+	"name": "RestResource1",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "API_REST_PowerBI",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"AdminAPI": {
+				"type": "string",
+				"defaultValue": "activityevents?startDateTime='@{formatDateTime(getPastTime(int(item()), 'Day'), 'yyyy-MM-dd')}T00:00:00.000Z'&endDateTime='@{formatDateTime(getPastTime(int(item()), 'Day'), 'yyyy-MM-dd')}T23:59:59.999Z'"
+			}
+		},
+		"annotations": [],
+		"type": "RestResource",
+		"schema": []
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}
