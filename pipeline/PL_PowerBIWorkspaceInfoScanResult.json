@@ -437,9 +437,6 @@
 				"type": "string"
 			}
 		},
-		"folder": {
-			"name": "Power BI monitor"
-		},
 		"annotations": [],
 		"lastPublishTime": "2021-02-19T19:48:50Z"
 	}

@@ -10,9 +10,6 @@
 				"type": "string"
 			}
 		},
-		"folder": {
-			"name": "Generic"
-		},
 		"annotations": [],
 		"type": "RestResource",
 		"typeProperties": {
