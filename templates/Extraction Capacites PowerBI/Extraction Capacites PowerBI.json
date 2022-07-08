@@ -1,0 +1,285 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name"
+		},
+		"LS_REST_MSI": {
+			"type": "string"
+		},
+		"SupportDatabase": {
+			"type": "string"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/PL_PowerBIGetCapacities_ASQL')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Extract list of Power BI capacities\n\nCreated by: Just Blindbæk",
+				"activities": [
+					{
+						"name": "Copy Capacities",
+						"description": "Copy from Power BI Admin API to ADLS",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.01:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [
+							{
+								"name": "Source",
+								"value": "@{concat('activityevents?startDateTime=''', formatDateTime(adddays(utcnow(), -7), 'yyyy-MM-dd'), 'T00:00:00.000Z''&endDateTime=''', formatDateTime(adddays(utcnow(), -7), 'yyyy-MM-dd'), 'T23:59:59.999Z''')}"
+							}
+						],
+						"typeProperties": {
+							"source": {
+								"type": "RestSource",
+								"additionalColumns": [
+									{
+										"name": "ADF_PipelineRunId",
+										"value": {
+											"value": "@pipeline().RunId",
+											"type": "Expression"
+										}
+									},
+									{
+										"name": "ADF_PipelineTriggerTime",
+										"value": {
+											"value": "@pipeline().TriggerTime",
+											"type": "Expression"
+										}
+									}
+								],
+								"httpRequestTimeout": "00:01:40",
+								"requestInterval": "00.00:00:00.010",
+								"requestMethod": "GET"
+							},
+							"sink": {
+								"type": "AzureSqlSink",
+								"tableOption": "autoCreate"
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"path": "[['id']"
+										},
+										"sink": {
+											"name": "id",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "[['displayName']"
+										},
+										"sink": {
+											"name": "displayName",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "[['admins']"
+										},
+										"sink": {
+											"name": "items",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "[['sku']"
+										},
+										"sink": {
+											"name": "sku",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "[['state']"
+										},
+										"sink": {
+											"name": "state",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "[['capacityUserAccessRight']"
+										},
+										"sink": {
+											"name": "capacityUserAccessRight",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "[['region']"
+										},
+										"sink": {
+											"name": "region",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "[['tenantKeyId']"
+										},
+										"sink": {
+											"name": "tenantKeyId",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "[['tenantKey']"
+										},
+										"sink": {
+											"name": "tenantKey",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "$['ADF_PipelineRunId']"
+										},
+										"sink": {
+											"name": "ADF_PipelineRunId",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "$['ADF_PipelineTriggerTime']"
+										},
+										"sink": {
+											"name": "ADF_PipelineTriggerTime",
+											"type": "DateTime"
+										}
+									}
+								],
+								"collectionReference": "$['value']",
+								"mapComplexValuesToString": true
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "DS_REST_PowerBI",
+								"type": "DatasetReference",
+								"parameters": {
+									"AdminAPI": "capacities?$expand=tenantKey"
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "DS_ASQL_Generic",
+								"type": "DatasetReference",
+								"parameters": {
+									"SchemaName": "stgpowerbi",
+									"TableName": "Capacities",
+									"DatabaseName": "DWH"
+								}
+							}
+						]
+					}
+				],
+				"folder": {
+					"name": "Power BI monitor"
+				},
+				"annotations": [],
+				"lastPublishTime": "2021-03-21T20:00:45Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/DS_REST_PowerBI')]",
+				"[concat(variables('factoryId'), '/datasets/DS_ASQL_Generic')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DS_REST_PowerBI')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('LS_REST_MSI')]",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"BaseURL": "https://api.powerbi.com/v1.0/myorg/admin/"
+					}
+				},
+				"parameters": {
+					"AdminAPI": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Generic"
+				},
+				"annotations": [],
+				"type": "RestResource",
+				"typeProperties": {
+					"relativeUrl": {
+						"value": "@dataset().AdminAPI",
+						"type": "Expression"
+					}
+				},
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DS_ASQL_Generic')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('SupportDatabase')]",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"SchemaName": {
+						"type": "String"
+					},
+					"TableName": {
+						"type": "String"
+					},
+					"DatabaseName": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Generic"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": {
+						"value": "@dataset().SchemaName",
+						"type": "Expression"
+					},
+					"table": {
+						"value": "@dataset().TableName",
+						"type": "Expression"
+					}
+				}
+			},
+			"dependsOn": []
+		}
+	]
+}
