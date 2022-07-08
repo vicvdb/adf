@@ -372,6 +372,152 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/DS_REST_PowerBI2')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "API_REST_PowerBI",
+					"type": "LinkedServiceReference",
+					"parameters": {}
+				},
+				"parameters": {
+					"AdminAPI": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Generic"
+				},
+				"annotations": [],
+				"type": "RestResource",
+				"typeProperties": {
+					"relativeUrl": {
+						"value": "@dataset().AdminAPI",
+						"type": "Expression"
+					}
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/API_REST_PowerBI')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DS_ASQL_Generic2')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "BdDVictor",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"SchemaName": {
+						"type": "String"
+					},
+					"TableName": {
+						"type": "String"
+					},
+					"DatabaseName": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Generic"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": {
+						"value": "@dataset().SchemaName",
+						"type": "Expression"
+					},
+					"table": {
+						"value": "@dataset().TableName",
+						"type": "Expression"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/BdDVictor')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DS_REST_PowerBI3')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "API_REST_PowerBI",
+					"type": "LinkedServiceReference",
+					"parameters": {}
+				},
+				"parameters": {
+					"AdminAPI": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Generic"
+				},
+				"annotations": [],
+				"type": "RestResource",
+				"typeProperties": {
+					"relativeUrl": {
+						"value": "@dataset().AdminAPI",
+						"type": "Expression"
+					}
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/API_REST_PowerBI')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DS_ASQL_Generic3')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "BdDVictor",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"SchemaName": {
+						"type": "String"
+					},
+					"TableName": {
+						"type": "String"
+					},
+					"DatabaseName": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Generic"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": {
+						"value": "@dataset().SchemaName",
+						"type": "Expression"
+					},
+					"table": {
+						"value": "@dataset().TableName",
+						"type": "Expression"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/BdDVictor')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/ETL_Logs_PowerBI')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -2189,194 +2335,6 @@
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/datasets/DS_REST_PowerBI1')]",
 				"[concat(variables('factoryId'), '/datasets/DS_ASQL_Generic1')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/PL_PowerBIWorkspaceInfo')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"description": "Extract Power BI tenant metadata\n\nCreated by: Just Blindbæk",
-				"activities": [
-					{
-						"name": "Save list of workspaces",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.01:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "RestSource",
-								"additionalColumns": [
-									{
-										"name": "ADF_PipelineRunID",
-										"value": {
-											"value": "@pipeline().RunId",
-											"type": "Expression"
-										}
-									},
-									{
-										"name": "ADF_PipelineTriggerTime",
-										"value": {
-											"value": "@pipeline().TriggerTime",
-											"type": "Expression"
-										}
-									}
-								],
-								"httpRequestTimeout": "00:01:40",
-								"requestInterval": "00.00:00:00.010",
-								"requestMethod": "GET"
-							},
-							"sink": {
-								"type": "AzureSqlSink",
-								"tableOption": "autoCreate"
-							},
-							"enableStaging": false
-						},
-						"inputs": [
-							{
-								"referenceName": "DS_REST_PowerBI1",
-								"type": "DatasetReference",
-								"parameters": {
-									"AdminAPI": "workspaces/modified"
-								}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "DS_ASQL_Generic1",
-								"type": "DatasetReference",
-								"parameters": {
-									"SchemaName": "stgpowerbi",
-									"TableName": "ModifiedWorkspaces",
-									"DatabaseName": {
-										"value": "DWH",
-										"type": "Expression"
-									}
-								}
-							}
-						]
-					},
-					{
-						"name": "Get batches of workspaces",
-						"type": "Lookup",
-						"dependsOn": [
-							{
-								"activity": "Save list of workspaces",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "0.01:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "AzureSqlSource",
-								"sqlReaderQuery": {
-									"value": "WITH [WorkspaceRanked]\nAS\n(\n    SELECT ROW_NUMBER() OVER (PARTITION BY [ADF_PipelineRunID] ORDER BY [Id]) AS [Rank]\n    ,[Id]\n    ,[ADF_PipelineRunID]\n    FROM [stgpowerbi].[ModifiedWorkspaces]\n),\n[WorkspaceBatched]\nAS\n(\n    SELECT ROW_NUMBER() OVER (PARTITION BY([Rank] % 100), [ADF_PipelineRunID] ORDER BY [Rank] ASC) AS [Batch]\n    ,[Id]\n    ,[ADF_PipelineRunID]\n    FROM [WorkspaceRanked]\n)\nSELECT N'{\"workspaces\": [\"' + STRING_AGG([Id], '\", \"') + '\"]}' AS [BodyExpression], [Batch]\nFROM [WorkspaceBatched]\nWHERE ADF_PipelineRunID = '@{pipeline().RunId}'\nGROUP BY [Batch]",
-									"type": "Expression"
-								},
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "DS_ASQL_Generic1",
-								"type": "DatasetReference",
-								"parameters": {
-									"SchemaName": "stgpowerbi",
-									"TableName": "ModifiedWorkspaces",
-									"DatabaseName": {
-										"value": "DWH",
-										"type": "Expression"
-									}
-								}
-							},
-							"firstRowOnly": false
-						}
-					},
-					{
-						"name": "ForEach batch",
-						"type": "ForEach",
-						"dependsOn": [
-							{
-								"activity": "Get batches of workspaces",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('Get batches of workspaces').output.value",
-								"type": "Expression"
-							},
-							"isSequential": false,
-							"activities": [
-								{
-									"name": "Execute ScanResult pipeline",
-									"type": "ExecutePipeline",
-									"dependsOn": [],
-									"userProperties": [],
-									"typeProperties": {
-										"pipeline": {
-											"referenceName": "PL_PowerBIWorkspaceInfoScanResult",
-											"type": "PipelineReference"
-										},
-										"waitOnCompletion": true,
-										"parameters": {
-											"Batch": {
-												"value": "@item().Batch",
-												"type": "Expression"
-											},
-											"ADF_PipelineRunId": {
-												"value": "@pipeline().RunId",
-												"type": "Expression"
-											},
-											"ADF_TriggerTime": {
-												"value": "@pipeline().TriggerTime",
-												"type": "Expression"
-											},
-											"BodyExpression": {
-												"value": "@item().BodyExpression",
-												"type": "Expression"
-											}
-										}
-									}
-								}
-							]
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"variables": {
-					"WorkspaceBatches": {
-						"type": "Array"
-					}
-				},
-				"annotations": [],
-				"lastPublishTime": "2021-02-26T12:04:07Z"
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/DS_REST_PowerBI1')]",
-				"[concat(variables('factoryId'), '/datasets/DS_ASQL_Generic1')]",
-				"[concat(variables('factoryId'), '/pipelines/PL_PowerBIWorkspaceInfoScanResult')]"
 			]
 		}
 	]
