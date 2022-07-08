@@ -1,0 +1,731 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name"
+		},
+		"LS_REST_MSI": {
+			"type": "string"
+		},
+		"SupportDatabase": {
+			"type": "string"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/PL_PowerBIWorkspaceInfo')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Extract Power BI tenant metadata\n\nCreated by: Just Blindbæk",
+				"activities": [
+					{
+						"name": "Save list of workspaces",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.01:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "RestSource",
+								"additionalColumns": [
+									{
+										"name": "ADF_PipelineRunID",
+										"value": {
+											"value": "@pipeline().RunId",
+											"type": "Expression"
+										}
+									},
+									{
+										"name": "ADF_PipelineTriggerTime",
+										"value": {
+											"value": "@pipeline().TriggerTime",
+											"type": "Expression"
+										}
+									}
+								],
+								"httpRequestTimeout": "00:01:40",
+								"requestInterval": "00.00:00:00.010",
+								"requestMethod": "GET"
+							},
+							"sink": {
+								"type": "AzureSqlSink",
+								"tableOption": "autoCreate"
+							},
+							"enableStaging": false
+						},
+						"inputs": [
+							{
+								"referenceName": "DS_REST_PowerBI",
+								"type": "DatasetReference",
+								"parameters": {
+									"AdminAPI": "workspaces/modified"
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "DS_ASQL_Generic",
+								"type": "DatasetReference",
+								"parameters": {
+									"SchemaName": "stgpowerbi",
+									"TableName": "ModifiedWorkspaces",
+									"DatabaseName": {
+										"value": "DWH",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					},
+					{
+						"name": "Get batches of workspaces",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "Save list of workspaces",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.01:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": {
+									"value": "WITH [WorkspaceRanked]\nAS\n(\n    SELECT ROW_NUMBER() OVER (PARTITION BY [ADF_PipelineRunID] ORDER BY [Id]) AS [Rank]\n    ,[Id]\n    ,[ADF_PipelineRunID]\n    FROM [stgpowerbi].[ModifiedWorkspaces]\n),\n[WorkspaceBatched]\nAS\n(\n    SELECT ROW_NUMBER() OVER (PARTITION BY([Rank] % 100), [ADF_PipelineRunID] ORDER BY [Rank] ASC) AS [Batch]\n    ,[Id]\n    ,[ADF_PipelineRunID]\n    FROM [WorkspaceRanked]\n)\nSELECT N'{\"workspaces\": [\"' + STRING_AGG([Id], '\", \"') + '\"]}' AS [BodyExpression], [Batch]\nFROM [WorkspaceBatched]\nWHERE ADF_PipelineRunID = '@{pipeline().RunId}'\nGROUP BY [Batch]",
+									"type": "Expression"
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DS_ASQL_Generic",
+								"type": "DatasetReference",
+								"parameters": {
+									"SchemaName": "stgpowerbi",
+									"TableName": "ModifiedWorkspaces",
+									"DatabaseName": {
+										"value": "DWH",
+										"type": "Expression"
+									}
+								}
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "ForEach batch",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Get batches of workspaces",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Get batches of workspaces').output.value",
+								"type": "Expression"
+							},
+							"isSequential": false,
+							"activities": [
+								{
+									"name": "Execute ScanResult pipeline",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "PL_PowerBIWorkspaceInfoScanResult",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"Batch": {
+												"value": "@item().Batch",
+												"type": "Expression"
+											},
+											"ADF_PipelineRunId": {
+												"value": "@pipeline().RunId",
+												"type": "Expression"
+											},
+											"ADF_TriggerTime": {
+												"value": "@pipeline().TriggerTime",
+												"type": "Expression"
+											},
+											"BodyExpression": {
+												"value": "@item().BodyExpression",
+												"type": "Expression"
+											}
+										}
+									}
+								}
+							]
+						}
+					}
+				],
+				"variables": {
+					"WorkspaceBatches": {
+						"type": "Array"
+					}
+				},
+				"folder": {
+					"name": "Power BI monitor"
+				},
+				"annotations": [],
+				"lastPublishTime": "2021-02-26T12:04:07Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/DS_REST_PowerBI')]",
+				"[concat(variables('factoryId'), '/datasets/DS_ASQL_Generic')]",
+				"[concat(variables('factoryId'), '/pipelines/PL_PowerBIWorkspaceInfoScanResult')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DS_REST_PowerBI')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('LS_REST_MSI')]",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"BaseURL": "https://api.powerbi.com/v1.0/myorg/admin/"
+					}
+				},
+				"parameters": {
+					"AdminAPI": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Generic"
+				},
+				"annotations": [],
+				"type": "RestResource",
+				"typeProperties": {
+					"relativeUrl": {
+						"value": "@dataset().AdminAPI",
+						"type": "Expression"
+					}
+				},
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DS_ASQL_Generic')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('SupportDatabase')]",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"SchemaName": {
+						"type": "String"
+					},
+					"TableName": {
+						"type": "String"
+					},
+					"DatabaseName": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Generic"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": {
+						"value": "@dataset().SchemaName",
+						"type": "Expression"
+					},
+					"table": {
+						"value": "@dataset().TableName",
+						"type": "Expression"
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/PL_PowerBIWorkspaceInfoScanResult')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Copy workspaceInfo data to ASQL",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "Until ScanStatus equals Succeeded",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.01:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "RestSource",
+								"additionalColumns": [
+									{
+										"name": "ADF_PipelineRunId",
+										"value": {
+											"value": "@pipeline().parameters.ADF_PipelineRunId",
+											"type": "Expression"
+										}
+									},
+									{
+										"name": "ADF_PipelineTriggerTime",
+										"value": {
+											"value": "@pipeline().parameters.ADF_TriggerTime",
+											"type": "Expression"
+										}
+									}
+								],
+								"httpRequestTimeout": "00:01:40",
+								"requestInterval": "00.00:00:00.010",
+								"requestMethod": "GET"
+							},
+							"sink": {
+								"type": "AzureSqlSink",
+								"tableOption": "autoCreate"
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"path": "[['id']"
+										},
+										"sink": {
+											"name": "id",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "[['name']"
+										},
+										"sink": {
+											"name": "name",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "[['type']"
+										},
+										"sink": {
+											"name": "type",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "[['state']"
+										},
+										"sink": {
+											"name": "state",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "[['isOnDedicatedCapacity']"
+										},
+										"sink": {
+											"name": "isOnDedicatedCapacity",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "[['capacityId']"
+										},
+										"sink": {
+											"name": "capacityId",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "[['reports']"
+										},
+										"sink": {
+											"name": "reports",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "[['dashboards']"
+										},
+										"sink": {
+											"name": "dashboards",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "[['datasets']"
+										},
+										"sink": {
+											"name": "datasets",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "[['dataflows']"
+										},
+										"sink": {
+											"name": "dataflows",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "$['ADF_PipelineRunId']"
+										},
+										"sink": {
+											"name": "ADF_PipelineRunId",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "$['ADF_PipelineTriggerTime']"
+										},
+										"sink": {
+											"name": "ADF_PipelineTriggerTime",
+											"type": "DateTime"
+										}
+									}
+								],
+								"collectionReference": "$['workspaces']",
+								"mapComplexValuesToString": true
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "DS_REST_PowerBI",
+								"type": "DatasetReference",
+								"parameters": {
+									"AdminAPI": {
+										"value": "workspaces/scanResult/@{activity('Get ScanStatus').output.id}",
+										"type": "Expression"
+									}
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "DS_ASQL_Generic",
+								"type": "DatasetReference",
+								"parameters": {
+									"SchemaName": "stgpowerbi",
+									"TableName": "WorkspaceInfo",
+									"DatabaseName": {
+										"value": "DWH",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					},
+					{
+						"name": "Until ScanStatus equals Succeeded",
+						"description": "Wait until Scan Status API says data is ready",
+						"type": "Until",
+						"dependsOn": [
+							{
+								"activity": "Post WorkspaceInfo",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@equals('Succeeded',activity('Get ScanStatus').output.status)",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "Wait 10 seconds",
+									"type": "Wait",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"waitTimeInSeconds": 10
+									}
+								},
+								{
+									"name": "Get ScanStatus",
+									"type": "WebActivity",
+									"dependsOn": [
+										{
+											"activity": "Wait 10 seconds",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.01:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"url": {
+											"value": "https://api.powerbi.com/v1.0/myorg/admin/workspaces/scanStatus/@{activity('Post WorkspaceInfo').output.id}",
+											"type": "Expression"
+										},
+										"method": "GET",
+										"body": {
+											"workspaces": [
+												"f2e40aba-27dd-4bea-8dcf-85bfdd6d03e4",
+												"52f0c738-c28d-4ac3-92ee-9766865a205b"
+											]
+										},
+										"authentication": {
+											"type": "MSI",
+											"resource": "https://analysis.windows.net/powerbi/api"
+										}
+									}
+								}
+							],
+							"timeout": "0.01:00:00"
+						}
+					},
+					{
+						"name": "Copy datasourceInstances data to ASQL",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "Until ScanStatus equals Succeeded",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.01:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "RestSource",
+								"additionalColumns": [
+									{
+										"name": "ADF_PipelineRunId",
+										"value": {
+											"value": "@pipeline().parameters.ADF_PipelineRunId",
+											"type": "Expression"
+										}
+									},
+									{
+										"name": "ADF_PipelineTriggerTime",
+										"value": {
+											"value": "@pipeline().parameters.ADF_TriggerTime",
+											"type": "Expression"
+										}
+									}
+								],
+								"httpRequestTimeout": "00:01:40",
+								"requestInterval": "00.00:00:00.010",
+								"requestMethod": "GET"
+							},
+							"sink": {
+								"type": "AzureSqlSink",
+								"tableOption": "autoCreate"
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"path": "[['datasourceType']"
+										},
+										"sink": {
+											"name": "datasourceType",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "[['connectionDetails']"
+										},
+										"sink": {
+											"name": "connectionDetails",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "[['datasourceId']"
+										},
+										"sink": {
+											"name": "datasourceId",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "[['gatewayId']"
+										},
+										"sink": {
+											"name": "gatewayId",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "$['ADF_PipelineRunId']"
+										},
+										"sink": {
+											"name": "ADF_PipelineRunId",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "$['ADF_PipelineTriggerTime']"
+										},
+										"sink": {
+											"name": "ADF_PipelineTriggerTime",
+											"type": "DateTime"
+										}
+									}
+								],
+								"collectionReference": "$['datasourceInstances']",
+								"mapComplexValuesToString": true
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "DS_REST_PowerBI",
+								"type": "DatasetReference",
+								"parameters": {
+									"AdminAPI": {
+										"value": "workspaces/scanResult/@{activity('Get ScanStatus').output.id}",
+										"type": "Expression"
+									}
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "DS_ASQL_Generic",
+								"type": "DatasetReference",
+								"parameters": {
+									"SchemaName": "stgpowerbi",
+									"TableName": "DatasourceInstances",
+									"DatabaseName": {
+										"value": "DWH",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					},
+					{
+						"name": "Post WorkspaceInfo",
+						"type": "WebActivity",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.01:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"url": "https://api.powerbi.com/v1.0/myorg/admin/workspaces/getInfo?lineage=True&datasourceDetails=True",
+							"method": "POST",
+							"body": {
+								"value": "@pipeline().parameters.BodyExpression",
+								"type": "Expression"
+							},
+							"authentication": {
+								"type": "MSI",
+								"resource": "https://analysis.windows.net/powerbi/api"
+							}
+						}
+					}
+				],
+				"parameters": {
+					"Batch": {
+						"type": "string"
+					},
+					"ADF_PipelineRunId": {
+						"type": "string"
+					},
+					"ADF_TriggerTime": {
+						"type": "string"
+					},
+					"BodyExpression": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Power BI monitor"
+				},
+				"annotations": [],
+				"lastPublishTime": "2021-02-19T19:48:50Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/DS_REST_PowerBI')]",
+				"[concat(variables('factoryId'), '/datasets/DS_ASQL_Generic')]"
+			]
+		}
+	]
+}
