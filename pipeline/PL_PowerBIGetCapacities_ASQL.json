@@ -1,0 +1,184 @@
+{
+	"name": "PL_PowerBIGetCapacities_ASQL",
+	"properties": {
+		"description": "Extract list of Power BI capacities\n\nCreated by: Just Blindbæk",
+		"activities": [
+			{
+				"name": "Copy Capacities",
+				"description": "Copy from Power BI Admin API to ADLS",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.01:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [
+					{
+						"name": "Source",
+						"value": "@{concat('activityevents?startDateTime=''', formatDateTime(adddays(utcnow(), -7), 'yyyy-MM-dd'), 'T00:00:00.000Z''&endDateTime=''', formatDateTime(adddays(utcnow(), -7), 'yyyy-MM-dd'), 'T23:59:59.999Z''')}"
+					}
+				],
+				"typeProperties": {
+					"source": {
+						"type": "RestSource",
+						"additionalColumns": [
+							{
+								"name": "ADF_PipelineRunId",
+								"value": {
+									"value": "@pipeline().RunId",
+									"type": "Expression"
+								}
+							},
+							{
+								"name": "ADF_PipelineTriggerTime",
+								"value": {
+									"value": "@pipeline().TriggerTime",
+									"type": "Expression"
+								}
+							}
+						],
+						"httpRequestTimeout": "00:01:40",
+						"requestInterval": "00.00:00:00.010",
+						"requestMethod": "GET"
+					},
+					"sink": {
+						"type": "AzureSqlSink",
+						"tableOption": "autoCreate"
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"path": "['id']"
+								},
+								"sink": {
+									"name": "id",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "['displayName']"
+								},
+								"sink": {
+									"name": "displayName",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "['admins']"
+								},
+								"sink": {
+									"name": "items",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "['sku']"
+								},
+								"sink": {
+									"name": "sku",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "['state']"
+								},
+								"sink": {
+									"name": "state",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "['capacityUserAccessRight']"
+								},
+								"sink": {
+									"name": "capacityUserAccessRight",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "['region']"
+								},
+								"sink": {
+									"name": "region",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "['tenantKeyId']"
+								},
+								"sink": {
+									"name": "tenantKeyId",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "['tenantKey']"
+								},
+								"sink": {
+									"name": "tenantKey",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['ADF_PipelineRunId']"
+								},
+								"sink": {
+									"name": "ADF_PipelineRunId",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['ADF_PipelineTriggerTime']"
+								},
+								"sink": {
+									"name": "ADF_PipelineTriggerTime",
+									"type": "DateTime"
+								}
+							}
+						],
+						"collectionReference": "$['value']",
+						"mapComplexValuesToString": true
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "DS_REST_PowerBI2",
+						"type": "DatasetReference",
+						"parameters": {
+							"AdminAPI": "capacities?$expand=tenantKey"
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "DS_ASQL_Generic2",
+						"type": "DatasetReference",
+						"parameters": {
+							"SchemaName": "stgpowerbi",
+							"TableName": "Capacities",
+							"DatabaseName": "DWH"
+						}
+					}
+				]
+			}
+		],
+		"annotations": [],
+		"lastPublishTime": "2021-03-21T20:00:45Z"
+	}
+}

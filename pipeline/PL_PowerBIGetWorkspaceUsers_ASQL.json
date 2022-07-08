@@ -1,0 +1,259 @@
+{
+	"name": "PL_PowerBIGetWorkspaceUsers_ASQL",
+	"properties": {
+		"description": "Extract list of users in Power BI workspaces.\n\nCreated by: Just Blindbæk",
+		"activities": [
+			{
+				"name": "Get number of workspaces",
+				"description": "Get number of V2 workspaces to handle, if more than 5000.",
+				"type": "WebActivity",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.01:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"url": "https://api.powerbi.com/v1.0/myorg/admin/groups?$expand=users&$filter=type eq 'Workspace'&$top=1",
+					"method": "GET",
+					"authentication": {
+						"type": "MSI",
+						"resource": "https://analysis.windows.net/powerbi/api"
+					}
+				}
+			},
+			{
+				"name": "Create array to loop",
+				"description": "Create a range for every 5000 workspaces, to use in the for each loop.",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Get number of workspaces",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "Batches",
+					"value": {
+						"value": "@range(1,div(sub(add(activity('Get number of workspaces').output['@odata.count'], 5000), 1), 5000))",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "For each batch",
+				"description": "Loop over batches of 5000 workspaces",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Create array to loop",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@variables('Batches')",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "Copy WorkspaceUsers",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.01:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [
+								{
+									"name": "Source",
+									"value": "@{concat('activityevents?startDateTime=''', formatDateTime(adddays(utcnow(), -7), 'yyyy-MM-dd'), 'T00:00:00.000Z''&endDateTime=''', formatDateTime(adddays(utcnow(), -7), 'yyyy-MM-dd'), 'T23:59:59.999Z''')}"
+								}
+							],
+							"typeProperties": {
+								"source": {
+									"type": "RestSource",
+									"additionalColumns": [
+										{
+											"name": "ADF_PipelineRunId",
+											"value": {
+												"value": "@pipeline().RunId",
+												"type": "Expression"
+											}
+										},
+										{
+											"name": "ADF_PipelineTriggerTime",
+											"value": {
+												"value": "@pipeline().TriggerTime",
+												"type": "Expression"
+											}
+										}
+									],
+									"httpRequestTimeout": "00:01:40",
+									"requestInterval": "00.00:00:00.010",
+									"requestMethod": "GET"
+								},
+								"sink": {
+									"type": "AzureSqlSink",
+									"tableOption": "autoCreate"
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"mappings": [
+										{
+											"source": {
+												"path": "['id']"
+											},
+											"sink": {
+												"name": "id",
+												"type": "String"
+											}
+										},
+										{
+											"source": {
+												"path": "['name']"
+											},
+											"sink": {
+												"name": "name",
+												"type": "String"
+											}
+										},
+										{
+											"source": {
+												"path": "['isReadOnly']"
+											},
+											"sink": {
+												"name": "isReadOnly",
+												"type": "Boolean"
+											}
+										},
+										{
+											"source": {
+												"path": "['isOnDedicatedCapacity']"
+											},
+											"sink": {
+												"name": "isOnDedicatedCapacity",
+												"type": "Boolean"
+											}
+										},
+										{
+											"source": {
+												"path": "['state']"
+											},
+											"sink": {
+												"name": "state",
+												"type": "String"
+											}
+										},
+										{
+											"source": {
+												"path": "['description']"
+											},
+											"sink": {
+												"name": "description",
+												"type": "String"
+											}
+										},
+										{
+											"source": {
+												"path": "['type']"
+											},
+											"sink": {
+												"name": "type",
+												"type": "String"
+											}
+										},
+										{
+											"source": {
+												"path": "['users']"
+											},
+											"sink": {
+												"name": "users",
+												"type": "String"
+											}
+										},
+										{
+											"source": {
+												"path": "['capacityMigrationStatus']"
+											},
+											"sink": {
+												"name": "capacityMigrationStatus",
+												"type": "String"
+											}
+										},
+										{
+											"source": {
+												"path": "$['ADF_PipelineRunId']"
+											},
+											"sink": {
+												"name": "ADF_PipelineRunId",
+												"type": "String"
+											}
+										},
+										{
+											"source": {
+												"path": "$['ADF_PipelineTriggerTime']"
+											},
+											"sink": {
+												"name": "ADF_PipelineTriggerTime",
+												"type": "DateTime"
+											}
+										}
+									],
+									"collectionReference": "$['value']",
+									"mapComplexValuesToString": true
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "DS_REST_PowerBI3",
+									"type": "DatasetReference",
+									"parameters": {
+										"AdminAPI": {
+											"value": "groups?$expand=users&$filter=type eq 'Workspace'&$top=@{mul(item(), 5000)}&$skip=@{sub(mul(item(), 5000), 5000)}",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "DS_ASQL_Generic3",
+									"type": "DatasetReference",
+									"parameters": {
+										"SchemaName": "stgpowerbi",
+										"TableName": "WorkspaceUsers",
+										"DatabaseName": "DWH"
+									}
+								}
+							]
+						}
+					]
+				}
+			}
+		],
+		"variables": {
+			"Batches": {
+				"type": "Array"
+			}
+		},
+		"folder": {
+			"name": "Power BI monitor"
+		},
+		"annotations": [],
+		"lastPublishTime": "2021-03-21T20:00:45Z"
+	}
+}
