@@ -1,0 +1,440 @@
+{
+	"name": "Resultat_Scan_Espaces_de_Travail_PowerBI",
+	"properties": {
+		"activities": [
+			{
+				"name": "Copier infos espaces de travail vers ASQL",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "Jusque succes du scan",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.01:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "RestSource",
+						"additionalColumns": [
+							{
+								"name": "ADF_PipelineRunId",
+								"value": {
+									"value": "@pipeline().parameters.ADF_PipelineRunId",
+									"type": "Expression"
+								}
+							},
+							{
+								"name": "ADF_PipelineTriggerTime",
+								"value": {
+									"value": "@pipeline().parameters.ADF_TriggerTime",
+									"type": "Expression"
+								}
+							}
+						],
+						"httpRequestTimeout": "00:01:40",
+						"requestInterval": "00.00:00:00.010",
+						"requestMethod": "GET"
+					},
+					"sink": {
+						"type": "AzureSqlSink",
+						"tableOption": "autoCreate"
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"path": "['id']"
+								},
+								"sink": {
+									"name": "id",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "['name']"
+								},
+								"sink": {
+									"name": "name",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "['type']"
+								},
+								"sink": {
+									"name": "type",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "['state']"
+								},
+								"sink": {
+									"name": "state",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "['isOnDedicatedCapacity']"
+								},
+								"sink": {
+									"name": "isOnDedicatedCapacity",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "['capacityId']"
+								},
+								"sink": {
+									"name": "capacityId",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "['reports']"
+								},
+								"sink": {
+									"name": "reports",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "['dashboards']"
+								},
+								"sink": {
+									"name": "dashboards",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "['datasets']"
+								},
+								"sink": {
+									"name": "datasets",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "['dataflows']"
+								},
+								"sink": {
+									"name": "dataflows",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['ADF_PipelineRunId']"
+								},
+								"sink": {
+									"name": "ADF_PipelineRunId",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['ADF_PipelineTriggerTime']"
+								},
+								"sink": {
+									"name": "ADF_PipelineTriggerTime",
+									"type": "DateTime"
+								}
+							}
+						],
+						"collectionReference": "$['workspaces']",
+						"mapComplexValuesToString": true
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "API_REST_PowerBI",
+						"type": "DatasetReference",
+						"parameters": {
+							"AdminAPI": "workspaces/scanResult/@{activity('Obtenir Statut du Scan').output.id}"
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "AzureSQL_BdDVictor",
+						"type": "DatasetReference",
+						"parameters": {
+							"SchemaName": "PowerBI",
+							"TableName": "InfosEspacesdeTravail",
+							"DatabaseName": "BdD-Victor"
+						}
+					}
+				]
+			},
+			{
+				"name": "Jusque succes du scan",
+				"description": "",
+				"type": "Until",
+				"dependsOn": [
+					{
+						"activity": "Poster Infos Espaces de Travail",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals('Succeeded',activity('Obtenir Statut du Scan').output.status)",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "Attendre 10 secondes",
+							"type": "Wait",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"waitTimeInSeconds": 10
+							}
+						},
+						{
+							"name": "Obtenir Statut du Scan",
+							"type": "WebActivity",
+							"dependsOn": [
+								{
+									"activity": "Attendre 10 secondes",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.01:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"url": {
+									"value": "https://api.powerbi.com/v1.0/myorg/admin/workspaces/scanStatus/@{activity('Poster Infos Espaces de Travail').output.id}",
+									"type": "Expression"
+								},
+								"connectVia": {
+									"referenceName": "AutoResolveIntegrationRuntime",
+									"type": "IntegrationRuntimeReference"
+								},
+								"method": "GET",
+								"body": {
+									"workspaces": [
+										"f2e40aba-27dd-4bea-8dcf-85bfdd6d03e4",
+										"52f0c738-c28d-4ac3-92ee-9766865a205b"
+									]
+								},
+								"authentication": {
+									"type": "MSI",
+									"resource": "https://analysis.windows.net/powerbi/api"
+								}
+							}
+						}
+					],
+					"timeout": "0.01:00:00"
+				}
+			},
+			{
+				"name": "Copier instances donnees source vers ASQL",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "Jusque succes du scan",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.01:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "RestSource",
+						"additionalColumns": [
+							{
+								"name": "ADF_PipelineRunId",
+								"value": {
+									"value": "@pipeline().parameters.ADF_PipelineRunId",
+									"type": "Expression"
+								}
+							},
+							{
+								"name": "ADF_PipelineTriggerTime",
+								"value": {
+									"value": "@pipeline().parameters.ADF_TriggerTime",
+									"type": "Expression"
+								}
+							}
+						],
+						"httpRequestTimeout": "00:01:40",
+						"requestInterval": "00.00:00:00.010",
+						"requestMethod": "GET"
+					},
+					"sink": {
+						"type": "AzureSqlSink",
+						"tableOption": "autoCreate"
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"path": "['datasourceType']"
+								},
+								"sink": {
+									"name": "datasourceType",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "['connectionDetails']"
+								},
+								"sink": {
+									"name": "connectionDetails",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "['datasourceId']"
+								},
+								"sink": {
+									"name": "datasourceId",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "['gatewayId']"
+								},
+								"sink": {
+									"name": "gatewayId",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['ADF_PipelineRunId']"
+								},
+								"sink": {
+									"name": "ADF_PipelineRunId",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['ADF_PipelineTriggerTime']"
+								},
+								"sink": {
+									"name": "ADF_PipelineTriggerTime",
+									"type": "DateTime"
+								}
+							}
+						],
+						"collectionReference": "$['datasourceInstances']",
+						"mapComplexValuesToString": true
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "API_REST_PowerBI",
+						"type": "DatasetReference",
+						"parameters": {
+							"AdminAPI": "workspaces/scanResult/@{activity('Obtenir Statut du Scan').output.id}"
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "AzureSQL_BdDVictor",
+						"type": "DatasetReference",
+						"parameters": {
+							"SchemaName": "PowerBI",
+							"TableName": "InstancesSourcesDonnees",
+							"DatabaseName": "BdD-Victor"
+						}
+					}
+				]
+			},
+			{
+				"name": "Poster Infos Espaces de Travail",
+				"type": "WebActivity",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.01:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"url": "https://api.powerbi.com/v1.0/myorg/admin/workspaces/getInfo?lineage=True&datasourceDetails=True",
+					"connectVia": {
+						"referenceName": "AutoResolveIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"method": "POST",
+					"body": {
+						"value": "@pipeline().parameters.BodyExpression",
+						"type": "Expression"
+					},
+					"authentication": {
+						"type": "MSI",
+						"resource": "https://analysis.windows.net/powerbi/api"
+					}
+				}
+			}
+		],
+		"parameters": {
+			"Batch": {
+				"type": "string"
+			},
+			"ADF_PipelineRunId": {
+				"type": "string"
+			},
+			"ADF_TriggerTime": {
+				"type": "string"
+			},
+			"BodyExpression": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2022-07-08T09:54:30Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}
